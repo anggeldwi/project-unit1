@@ -2,6 +2,12 @@ package entities
 
 import "time"
 
+func NewUser() *User {
+	return &User{
+		Balance: Balance{},
+	}
+}
+
 type User struct {
 	ID           uint
 	Name         string
@@ -10,6 +16,7 @@ type User struct {
 	Email        string
 	Password     string
 	CreatedAt    time.Time
+	Balance      Balance
 }
 
 type Balance struct {
@@ -17,4 +24,11 @@ type Balance struct {
 	UserID    int
 	Amount    float64
 	UpdatedAt string
+}
+
+type TopUpHistory struct {
+	ID      int
+	UserID  int
+	Amount  float64
+	TopUpAt time.Time
 }

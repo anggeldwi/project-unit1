@@ -7,6 +7,7 @@ import (
 	"project-unit-1/entities"
 )
 
+// Fitur login
 func Login(db *sql.DB, phoneNumber, password string) (*entities.User, error) {
 	var user entities.User
 
@@ -26,6 +27,7 @@ func Login(db *sql.DB, phoneNumber, password string) (*entities.User, error) {
 	return &user, nil
 }
 
+// Fitur read account
 func ReadAccount(db *sql.DB, phoneNumber, password string) {
 	var usersWithBalance []struct {
 		User    entities.User
@@ -33,7 +35,7 @@ func ReadAccount(db *sql.DB, phoneNumber, password string) {
 	}
 
 	// menjalankan perintah query select dengan operasi JOIN
-	rows, errSelect := db.Query("SELECT u.id AS user_id, u.name, u.phone_number, u.alamat, u.email, b.amount, b.balance_at FROM users u LEFT JOIN balances b ON u.id = b.user_id WHERE u.phone_number = ? AND u.password = ?", phoneNumber, password)
+	rows, errSelect := db.Query("SELECT u.id AS user_id, u.name, u.phone_number, u.alamat, u.email, u.created_at, b.amount, b.balance_at FROM users u LEFT JOIN balances b ON u.id = b.user_id WHERE u.phone_number = ? AND u.password = ?", phoneNumber, password)
 	if errSelect != nil {
 		log.Fatal("error run query select ", errSelect.Error())
 	}
@@ -43,7 +45,7 @@ func ReadAccount(db *sql.DB, phoneNumber, password string) {
 			User    entities.User
 			Balance entities.Balance
 		}
-		errScan := rows.Scan(&userWithBalance.User.ID, &userWithBalance.User.Name, &userWithBalance.User.Phone_number, &userWithBalance.User.Alamat, &userWithBalance.User.Email, &userWithBalance.Balance.Amount, &userWithBalance.Balance.UpdatedAt)
+		errScan := rows.Scan(&userWithBalance.User.ID, &userWithBalance.User.Name, &userWithBalance.User.Phone_number, &userWithBalance.User.Alamat, &userWithBalance.User.Email, &userWithBalance.User.CreatedAt, &userWithBalance.Balance.Amount, &userWithBalance.Balance.UpdatedAt)
 		if errScan != nil {
 			log.Fatal("error scan select", errScan.Error())
 		}
@@ -51,6 +53,127 @@ func ReadAccount(db *sql.DB, phoneNumber, password string) {
 	}
 
 	for _, u := range usersWithBalance {
-		fmt.Printf("Nama: %v, Email: %v, Alamat: %v, Jumlah Saldo: %v, Updated At: %v\n", u.User.Name, u.User.Email, u.User.Alamat, u.Balance.Amount, u.Balance.UpdatedAt)
+		fmt.Printf("Nama: %v\nEmail: %v\nAlamat: %v\nJumlah Saldo:%v\nCreated At:%v\nUpdated At: %v\n", u.User.Name, u.User.Email, u.User.Alamat, u.Balance.Amount, u.User.CreatedAt, u.Balance.UpdatedAt)
+	}
+}
+
+// Fitur update account
+// UpdateAccount memperbarui informasi akun pengguna
+func UpdateAccount(db *sql.DB, user *entities.User) error {
+	// Menampilkan informasi akun sebelum diperbarui
+	fmt.Printf("Informasi Akun Sebelum Diperbarui:\n")
+	fmt.Printf("Nama: %s, Nomor Telepon: %s, Alamat: %s, Email: %s\n", user.Name, user.Phone_number, user.Alamat, user.Email)
+
+	// Menerima input dari pengguna untuk pembaruan
+	var newName, newPhoneNumber, newAlamat, newEmail string
+
+	// Membersihkan newline yang mungkin masih ada di dalam buffer input
+	fmt.Scanln()
+
+	fmt.Print("Masukkan nama baru: ")
+	fmt.Scanln(&newName)
+
+	fmt.Print("Masukkan nomor telepon baru: ")
+	fmt.Scanln(&newPhoneNumber)
+
+	fmt.Print("Masukkan alamat baru: ")
+	fmt.Scanln(&newAlamat)
+
+	fmt.Print("Masukkan email baru: ")
+	fmt.Scanln(&newEmail)
+
+	// Update informasi akun di database
+	_, err := db.Exec("UPDATE users SET name=?, phone_number=?, alamat=?, email=? WHERE id=?", newName, newPhoneNumber, newAlamat, newEmail, user.ID)
+	if err != nil {
+		log.Fatal("error during account update:", err)
+		return fmt.Errorf("failed to update account information")
+	}
+
+	// Menampilkan informasi akun setelah diperbarui
+	fmt.Printf("\nInformasi Akun Setelah Diperbarui:\n")
+	fmt.Printf("Nama: %s, Nomor Telepon: %s, Alamat: %s, Email: %s\n", newName, newPhoneNumber, newAlamat, newEmail)
+
+	return nil
+}
+
+// Fitur top up
+func TopUp(db *sql.DB, user *entities.User) error {
+
+	// Menerima input dari pengguna untuk top up
+	var amount float64
+	fmt.Print("Masukkan jumlah saldo yang ingin ditambahkan: ")
+	_, err := fmt.Scan(&amount)
+	if err != nil {
+		return fmt.Errorf("error reading top-up amount: %w", err)
+	}
+
+	// Membersihkan newline yang mungkin masih ada di dalam buffer input
+	fmt.Scanln()
+
+	// Memastikan jumlah top up positif
+	if amount <= 0 {
+		fmt.Println("Jumlah top up harus lebih dari 0.")
+		return nil
+	}
+
+	// Update saldo di database
+	_, err = db.Exec("UPDATE balances SET amount = amount + ?, balance_at = NOW() WHERE user_id = ?", amount, user.ID)
+	if err != nil {
+		return fmt.Errorf("error during balance update: %w", err)
+	}
+
+	// Menyimpan riwayat top-up ke dalam tabel top_ups_history
+	_, err = db.Exec("INSERT INTO top_ups_history (user_id, amount, top_up_at) VALUES (?, ?, NOW())", user.ID, amount)
+	if err != nil {
+		return fmt.Errorf("error saving top-up history: %w", err)
+	}
+
+	// Menampilkan informasi saldo setelah top up
+	newBalance, err := getBalance(db, user.ID)
+	if err != nil {
+		return fmt.Errorf("error getting new balance: %w", err)
+	}
+	user.Balance.Amount = newBalance
+	fmt.Printf("\nSaldo Setelah Top Up: %.2f\n", user.Balance.Amount)
+
+	return nil
+}
+
+// getBalance mengambil balance dari database berdasarkan user ID
+func getBalance(db *sql.DB, userID uint) (float64, error) {
+	var balance float64
+	err := db.QueryRow("SELECT amount FROM balances WHERE user_id = ?", userID).Scan(&balance)
+	if err != nil {
+		return 0, err
+	}
+	return balance, nil
+}
+
+// Fitur melihat riwayat top-up
+func ViewTopUpHistory(db *sql.DB, userID uint) {
+	var topUpHistory []entities.TopUpHistory
+
+	// Menjalankan perintah query untuk mendapatkan riwayat top-up berdasarkan ID pengguna
+	rows, err := db.Query("SELECT topup_id, user_id, amount, top_up_at FROM top_ups_history WHERE user_id = ?", userID)
+	if err != nil {
+		log.Fatal("error running top-up history query:", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var history entities.TopUpHistory
+		err := rows.Scan(&history.ID, &history.UserID, &history.Amount, &history.TopUpAt)
+		if err != nil {
+			log.Fatal("error scanning top-up history:", err)
+			return
+		}
+		topUpHistory = append(topUpHistory, history)
+	}
+
+	// Menampilkan riwayat top-up
+	fmt.Println("Riwayat Top-Up:")
+	for _, history := range topUpHistory {
+		fmt.Printf("ID: %d, Jumlah Top Up: %.2f, Top up At: %v\n", history.ID, history.Amount, history.TopUpAt)
 	}
 }
