@@ -128,6 +128,19 @@ func main() {
 				fmt.Println("Gagal memperbarui informasi akun:", err)
 			}
 
+		case 4:
+			// Memastikan bahwa user sudah login sebelum mengakses menu ini
+			if user == nil || user.Name == "" {
+				fmt.Println("Silakan login terlebih dahulu.")
+				continue
+			}
+			fmt.Println("Top Up Saldo:")
+			// memanggil fungsi TopUp dengan user yang sudah login
+			err := controller.TopUp(db, user)
+			if err != nil {
+				fmt.Println("Gagal melakukan top up saldo:", err)
+			}
+
 		case 0:
 			fmt.Println("Sukses keluar dari aplikasi.")
 			return

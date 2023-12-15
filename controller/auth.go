@@ -112,3 +112,56 @@ func UpdateAccount(db *sql.DB, user *entities.User) error {
 
 	return nil
 }
+
+// Fitur top up
+func TopUp(db *sql.DB, user *entities.User) error {
+
+	// Menerima input dari pengguna untuk top up
+	var amount float64
+	fmt.Print("Masukkan jumlah saldo yang ingin ditambahkan: ")
+	_, err := fmt.Scan(&amount)
+	if err != nil {
+		return fmt.Errorf("error reading top-up amount: %w", err)
+	}
+
+	// Membersihkan newline yang mungkin masih ada di dalam buffer input
+	fmt.Scanln()
+
+	// Memastikan jumlah top up positif
+	if amount <= 0 {
+		fmt.Println("Jumlah top up harus lebih dari 0.")
+		return nil
+	}
+
+	// Update saldo di database
+	_, err = db.Exec("UPDATE balances SET amount = amount + ?, balance_at = NOW() WHERE user_id = ?", amount, user.ID)
+	if err != nil {
+		return fmt.Errorf("error during balance update: %w", err)
+	}
+
+	// Menyimpan riwayat top-up ke dalam tabel top_ups_history
+	_, err = db.Exec("INSERT INTO top_ups_history (user_id, amount, top_up_at) VALUES (?, ?, NOW())", user.ID, amount)
+	if err != nil {
+		return fmt.Errorf("error saving top-up history: %w", err)
+	}
+
+	// Menampilkan informasi saldo setelah top up
+	newBalance, err := getBalance(db, user.ID)
+	if err != nil {
+		return fmt.Errorf("error getting new balance: %w", err)
+	}
+	user.Balance.Amount = newBalance
+	fmt.Printf("\nSaldo Setelah Top Up: %.2f\n", user.Balance.Amount)
+
+	return nil
+}
+
+// getBalance mengambil balance dari database berdasarkan user ID
+func getBalance(db *sql.DB, userID uint) (float64, error) {
+	var balance float64
+	err := db.QueryRow("SELECT amount FROM balances WHERE user_id = ?", userID).Scan(&balance)
+	if err != nil {
+		return 0, err
+	}
+	return balance, nil
+}
