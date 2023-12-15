@@ -141,6 +141,15 @@ func main() {
 				fmt.Println("Gagal melakukan top up saldo:", err)
 			}
 
+		case 5:
+			// Memastikan bahwa user sudah login sebelum mengakses menu ini
+			if user == nil || user.Name == "" {
+				fmt.Println("Silakan login terlebih dahulu.")
+				continue
+			}
+			fmt.Println("Lihat Riwayat Top Up:")
+			// memanggil fungsi ViewTopUpHistory dengan ID pengguna yang sudah login
+			controller.ViewTopUpHistory(db, user.ID)
 		case 0:
 			fmt.Println("Sukses keluar dari aplikasi.")
 			return

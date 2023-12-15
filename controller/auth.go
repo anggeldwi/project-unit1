@@ -165,3 +165,32 @@ func getBalance(db *sql.DB, userID uint) (float64, error) {
 	}
 	return balance, nil
 }
+
+// Fitur melihat riwayat top-up
+func ViewTopUpHistory(db *sql.DB, userID uint) {
+	var topUpHistory []entities.TopUpHistory
+
+	// Menjalankan perintah query untuk mendapatkan riwayat top-up berdasarkan ID pengguna
+	rows, err := db.Query("SELECT topup_id, user_id, amount, top_up_at FROM top_ups_history WHERE user_id = ?", userID)
+	if err != nil {
+		log.Fatal("error running top-up history query:", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var history entities.TopUpHistory
+		err := rows.Scan(&history.ID, &history.UserID, &history.Amount, &history.TopUpAt)
+		if err != nil {
+			log.Fatal("error scanning top-up history:", err)
+			return
+		}
+		topUpHistory = append(topUpHistory, history)
+	}
+
+	// Menampilkan riwayat top-up
+	fmt.Println("Riwayat Top-Up:")
+	for _, history := range topUpHistory {
+		fmt.Printf("ID: %d, Jumlah Top Up: %.2f, Top up At: %v\n", history.ID, history.Amount, history.TopUpAt)
+	}
+}
