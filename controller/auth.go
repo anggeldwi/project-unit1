@@ -191,6 +191,6 @@ func ViewTopUpHistory(db *sql.DB, userID uint) {
 	// Menampilkan riwayat top-up
 	fmt.Println("Riwayat Top-Up:")
 	for _, history := range topUpHistory {
-		fmt.Printf("ID: %d, Jumlah Top Up: %.2f, Top up At: %v\n", history.ID, history.Amount, history.TopUpAt)
+		fmt.Printf("Jumlah Top Up: %.2f, Top up At: %v\n", history.Amount, history.TopUpAt)
 	}
 }
