@@ -61,7 +61,7 @@ func main() {
 	// close connection
 	defer db.Close()
 
-	var user *entities.User // variabel untuk menyimpan informasi user yang berhasil login
+	var user *entities.User = entities.NewUser() // variabel untuk menyimpan informasi user yang berhasil login
 
 	for {
 		// membuat menu
@@ -107,13 +107,26 @@ func main() {
 			user = loggedInUser
 		case 2:
 			// Memastikan bahwa user sudah login sebelum mengakses menu ini
-			if user == nil {
+			if user == nil || user.Name == "" {
 				fmt.Println("Silakan login terlebih dahulu.")
 				continue
 			}
 			fmt.Println("Lihat Profil:")
 			// memanggil fungsi ReadAccount dengan user yang sudah login
-			controller.ReadAccount(db, user.Phone_number, user.Password)
+			controller.ReadAccount(db, user.Phone_number)
+
+		case 3:
+			// Memastikan bahwa user sudah login sebelum mengakses menu ini
+			if user == nil || user.Name == "" {
+				fmt.Println("Silakan login terlebih dahulu.")
+				continue
+			}
+			fmt.Println("Update Data Akun:")
+			// memanggil fungsi UpdateAccount dengan user yang sudah login
+			err := controller.UpdateAccount(db, user)
+			if err != nil {
+				fmt.Println("Gagal memperbarui informasi akun:", err)
+			}
 
 		case 0:
 			fmt.Println("Sukses keluar dari aplikasi.")
