@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"bufio"
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"project-unit-1/entities"
+	"strings"
 )
 
 // Fitur login
@@ -28,14 +31,14 @@ func Login(db *sql.DB, phoneNumber, password string) (*entities.User, error) {
 }
 
 // Fitur read account
-func ReadAccount(db *sql.DB, phoneNumber, password string) {
+func ReadAccount(db *sql.DB, phoneNumber string) {
 	var usersWithBalance []struct {
 		User    entities.User
 		Balance entities.Balance
 	}
 
 	// menjalankan perintah query select dengan operasi JOIN
-	rows, errSelect := db.Query("SELECT u.id AS user_id, u.name, u.phone_number, u.alamat, u.email, u.created_at, b.amount, b.balance_at FROM users u LEFT JOIN balances b ON u.id = b.user_id WHERE u.phone_number = ? AND u.password = ?", phoneNumber, password)
+	rows, errSelect := db.Query("SELECT u.id AS user_id, u.name, u.phone_number, u.alamat, u.email, u.created_at, b.amount, b.balance_at FROM users u LEFT JOIN balances b ON u.id = b.user_id WHERE u.phone_number = ?", phoneNumber)
 	if errSelect != nil {
 		log.Fatal("error run query select ", errSelect.Error())
 	}
@@ -53,12 +56,17 @@ func ReadAccount(db *sql.DB, phoneNumber, password string) {
 	}
 
 	for _, u := range usersWithBalance {
-		fmt.Printf("Nama: %v\nEmail: %v\nAlamat: %v\nJumlah Saldo:%v\nCreated At:%v\nUpdated At: %v\n", u.User.Name, u.User.Email, u.User.Alamat, u.Balance.Amount, u.User.CreatedAt, u.Balance.UpdatedAt)
+
+		// Format waktu pada Created At
+		createdAt := u.User.CreatedAt.Format("2006-01-02 15:04:05")
+		// Format waktu pada Updated At
+		updatedAt := u.Balance.UpdatedAt.Format("2006-01-02 15:04:05")
+
+		fmt.Printf("Nama: %v\nEmail: %v\nAlamat: %v\nNo.Phone: %v\nJumlah Saldo:%v\nCreated At:%v\nUpdated At: %v\n", u.User.Name, u.User.Email, u.User.Alamat, u.User.Phone_number, u.Balance.Amount, createdAt, updatedAt)
 	}
 }
 
 // Fitur update account
-// UpdateAccount memperbarui informasi akun pengguna
 func UpdateAccount(db *sql.DB, user *entities.User) error {
 	// Menampilkan informasi akun sebelum diperbarui
 	fmt.Printf("Informasi Akun Sebelum Diperbarui:\n")
@@ -70,17 +78,23 @@ func UpdateAccount(db *sql.DB, user *entities.User) error {
 	// Membersihkan newline yang mungkin masih ada di dalam buffer input
 	fmt.Scanln()
 
+	reader := bufio.NewReader(os.Stdin)
+
 	fmt.Print("Masukkan nama baru: ")
-	fmt.Scanln(&newName)
+	newName, _ = reader.ReadString('\n')
+	newName = strings.TrimSpace(newName)
 
 	fmt.Print("Masukkan nomor telepon baru: ")
-	fmt.Scanln(&newPhoneNumber)
+	newPhoneNumber, _ = reader.ReadString('\n')
+	newPhoneNumber = strings.TrimSpace(newPhoneNumber)
 
 	fmt.Print("Masukkan alamat baru: ")
-	fmt.Scanln(&newAlamat)
+	newAlamat, _ = reader.ReadString('\n')
+	newAlamat = strings.TrimSpace(newAlamat)
 
 	fmt.Print("Masukkan email baru: ")
-	fmt.Scanln(&newEmail)
+	newEmail, _ = reader.ReadString('\n')
+	newEmail = strings.TrimSpace(newEmail)
 
 	// Update informasi akun di database
 	_, err := db.Exec("UPDATE users SET name=?, phone_number=?, alamat=?, email=? WHERE id=?", newName, newPhoneNumber, newAlamat, newEmail, user.ID)
@@ -91,89 +105,10 @@ func UpdateAccount(db *sql.DB, user *entities.User) error {
 
 	// Menampilkan informasi akun setelah diperbarui
 	fmt.Printf("\nInformasi Akun Setelah Diperbarui:\n")
-	fmt.Printf("Nama: %s, Nomor Telepon: %s, Alamat: %s, Email: %s\n", newName, newPhoneNumber, newAlamat, newEmail)
+	fmt.Printf("Nama:           %s\n", newName)
+	fmt.Printf("Nomor Telepon:  %s\n", newPhoneNumber)
+	fmt.Printf("Alamat:         %s\n", newAlamat)
+	fmt.Printf("Email:          %s\n", newEmail)
 
 	return nil
-}
-
-// Fitur top up
-func TopUp(db *sql.DB, user *entities.User) error {
-
-	// Menerima input dari pengguna untuk top up
-	var amount float64
-	fmt.Print("Masukkan jumlah saldo yang ingin ditambahkan: ")
-	_, err := fmt.Scan(&amount)
-	if err != nil {
-		return fmt.Errorf("error reading top-up amount: %w", err)
-	}
-
-	// Membersihkan newline yang mungkin masih ada di dalam buffer input
-	fmt.Scanln()
-
-	// Memastikan jumlah top up positif
-	if amount <= 0 {
-		fmt.Println("Jumlah top up harus lebih dari 0.")
-		return nil
-	}
-
-	// Update saldo di database
-	_, err = db.Exec("UPDATE balances SET amount = amount + ?, balance_at = NOW() WHERE user_id = ?", amount, user.ID)
-	if err != nil {
-		return fmt.Errorf("error during balance update: %w", err)
-	}
-
-	// Menyimpan riwayat top-up ke dalam tabel top_ups_history
-	_, err = db.Exec("INSERT INTO top_ups_history (user_id, amount, top_up_at) VALUES (?, ?, NOW())", user.ID, amount)
-	if err != nil {
-		return fmt.Errorf("error saving top-up history: %w", err)
-	}
-
-	// Menampilkan informasi saldo setelah top up
-	newBalance, err := getBalance(db, user.ID)
-	if err != nil {
-		return fmt.Errorf("error getting new balance: %w", err)
-	}
-	user.Balance.Amount = newBalance
-	fmt.Printf("\nSaldo Setelah Top Up: %.2f\n", user.Balance.Amount)
-
-	return nil
-}
-
-// getBalance mengambil balance dari database berdasarkan user ID
-func getBalance(db *sql.DB, userID uint) (float64, error) {
-	var balance float64
-	err := db.QueryRow("SELECT amount FROM balances WHERE user_id = ?", userID).Scan(&balance)
-	if err != nil {
-		return 0, err
-	}
-	return balance, nil
-}
-
-// Fitur melihat riwayat top-up
-func ViewTopUpHistory(db *sql.DB, userID uint) {
-	var topUpHistory []entities.TopUpHistory
-
-	// Menjalankan perintah query untuk mendapatkan riwayat top-up berdasarkan ID pengguna
-	rows, err := db.Query("SELECT topup_id, user_id, amount, top_up_at FROM top_ups_history WHERE user_id = ?", userID)
-	if err != nil {
-		log.Fatal("error running top-up history query:", err)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var history entities.TopUpHistory
-		err := rows.Scan(&history.ID, &history.UserID, &history.Amount, &history.TopUpAt)
-		if err != nil {
-			log.Fatal("error scanning top-up history:", err)
-			return
-		}
-		topUpHistory = append(topUpHistory, history)
-	}
-
-	// Menampilkan riwayat top-up
-	fmt.Println("Riwayat Top-Up:")
-	for _, history := range topUpHistory {
-		fmt.Printf("ID: %d, Jumlah Top Up: %.2f, Top up At: %v\n", history.ID, history.Amount, history.TopUpAt)
-	}
 }

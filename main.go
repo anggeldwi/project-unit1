@@ -113,7 +113,7 @@ func main() {
 			}
 			fmt.Println("Lihat Profil:")
 			// memanggil fungsi ReadAccount dengan user yang sudah login
-			controller.ReadAccount(db, user.Phone_number, user.Password)
+			controller.ReadAccount(db, user.Phone_number)
 
 		case 3:
 			// Memastikan bahwa user sudah login sebelum mengakses menu ini
@@ -127,29 +127,6 @@ func main() {
 			if err != nil {
 				fmt.Println("Gagal memperbarui informasi akun:", err)
 			}
-
-		case 4:
-			// Memastikan bahwa user sudah login sebelum mengakses menu ini
-			if user == nil || user.Name == "" {
-				fmt.Println("Silakan login terlebih dahulu.")
-				continue
-			}
-			fmt.Println("Top Up Saldo:")
-			// memanggil fungsi TopUp dengan user yang sudah login
-			err := controller.TopUp(db, user)
-			if err != nil {
-				fmt.Println("Gagal melakukan top up saldo:", err)
-			}
-
-		case 5:
-			// Memastikan bahwa user sudah login sebelum mengakses menu ini
-			if user == nil || user.Name == "" {
-				fmt.Println("Silakan login terlebih dahulu.")
-				continue
-			}
-			fmt.Println("Lihat Riwayat Top Up:")
-			// memanggil fungsi ViewTopUpHistory dengan ID pengguna yang sudah login
-			controller.ViewTopUpHistory(db, user.ID)
 
 		case 0:
 			fmt.Println("Sukses keluar dari aplikasi.")

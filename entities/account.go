@@ -23,7 +23,7 @@ type Balance struct {
 	ID        int
 	UserID    int
 	Amount    float64
-	UpdatedAt string
+	UpdatedAt time.Time
 }
 
 type TopUpHistory struct {
